@@ -280,7 +280,7 @@ class _DialState extends State<_Dial> with SingleTickerProviderStateMixin {
       ..end = targetTheta;
     _thetaController
       ..value = 0.0
-      ..forward();
+      ..forward().then((value) => _updateTurningAngle(beginTheta, targetTheta));
   }
 
   // Converts the duration to the chosen base unit. For example, for base unit minutes, this gets the number of minutes
@@ -344,15 +344,14 @@ class _DialState extends State<_Dial> with SingleTickerProviderStateMixin {
         _getBaseUnitToSecondaryUnitFactor(widget.baseUnit);
   }
 
-  // TODO: Fix snap to mins
   Duration _getTimeForTheta(double theta) {
-    debugPrint("running _getTimeForTheta");
-    //return _angleToDuration(_turningAngle);
-    var fractionalRotation = (0.25 - (theta / _kTwoPi));
-    fractionalRotation = fractionalRotation < 0
-        ? 1 - fractionalRotation.abs()
-        : fractionalRotation;
-    var mins = (fractionalRotation * 60).round();
+    var d = _angleToDuration(_turningAngle);
+//    var fractionalRotation = (0.25 - (theta / _kTwoPi));
+//    fractionalRotation = fractionalRotation < 0
+//        ? 1 - fractionalRotation.abs()
+//        : fractionalRotation;
+//    var mins = (fractionalRotation * 60).round();
+    var mins = d.inMinutes;
     debugPrint('Snap mins: ${widget.snapToMins}');
     if (widget.snapToMins != null) {
       debugPrint('Mins before: $mins');
@@ -362,17 +361,17 @@ class _DialState extends State<_Dial> with SingleTickerProviderStateMixin {
     if (mins == 60) {
       // _snappedHours = _hours + 1;
       // mins = 0;
-      return Duration(hours: 1, minutes: mins);
+      return Duration(hours: 0, minutes: mins);
     } else {
       // _snappedHours = _hours;
-      return Duration(hours: mins % 60, minutes: mins);
+      return Duration(hours: d.inHours, minutes: mins);
     }
   }
 
-  Duration _notifyOnChangedIfNeeded() {
+  Duration _notifyOnChangedIfNeeded({Duration? duration}) {
     _secondaryUnitValue = _secondaryUnitHand();
     _baseUnitValue = _baseUnitHand();
-    var d = _angleToDuration(_turningAngle);
+    var d = duration ?? _angleToDuration(_turningAngle);
     widget.onChanged(d);
 
     return d;
@@ -406,7 +405,7 @@ class _DialState extends State<_Dial> with SingleTickerProviderStateMixin {
     _position = box.globalToLocal(details.globalPosition);
     _center = box.size.center(Offset.zero);
 
-    _notifyOnChangedIfNeeded();
+    if (widget.snapToMins == null) _notifyOnChangedIfNeeded();
   }
 
   void _handlePanUpdate(DragUpdateDetails details) {
@@ -417,6 +416,7 @@ class _DialState extends State<_Dial> with SingleTickerProviderStateMixin {
     var newTheta = _theta.value;
 
     _updateTurningAngle(oldTheta, newTheta);
+    //if (widget.snapToMins == null)
     _notifyOnChangedIfNeeded();
   }
 
@@ -498,8 +498,6 @@ class _DialState extends State<_Dial> with SingleTickerProviderStateMixin {
     } else {
       _turningAngle = _turningAngle + (newTheta - oldTheta);
     }
-
-    debugPrint("turning angle $newTheta");
   }
 
   void _handlePanEnd(DragEndDetails details) {
@@ -508,8 +506,10 @@ class _DialState extends State<_Dial> with SingleTickerProviderStateMixin {
     _position = null;
     _center = null;
     //_animateTo(_getThetaForDuration(widget.duration, widget.baseUnit));
-    _animateTo(
-        _getThetaForDuration(_getTimeForTheta(_theta.value), widget.baseUnit));
+    var duration = _getTimeForTheta(_theta.value);
+    debugPrint("duration after pan is $duration");
+    _animateTo(_getThetaForDuration(duration, widget.baseUnit));
+    if (widget.snapToMins != null) _notifyOnChangedIfNeeded(duration: duration);
   }
 
   void _handleTapUp(TapUpDetails details) {
@@ -518,12 +518,14 @@ class _DialState extends State<_Dial> with SingleTickerProviderStateMixin {
     _center = box.size.center(Offset.zero);
     _updateThetaForPan();
     _notifyOnChangedIfNeeded();
-
-    _animateTo(
-        _getThetaForDuration(_getTimeForTheta(_theta.value), widget.baseUnit));
     _dragging = false;
     _position = null;
     _center = null;
+
+    var duration = _getTimeForTheta(_theta.value);
+    _animateTo(_getThetaForDuration(duration, widget.baseUnit));
+
+    if (widget.snapToMins != null) _notifyOnChangedIfNeeded(duration: duration);
   }
 
   List<TextPainter> _buildBaseUnitLabels(TextTheme textTheme) {
