@@ -193,11 +193,12 @@ class DialPainter extends CustomPainter {
 }
 
 class _Dial extends StatefulWidget {
-  const _Dial(
-      {required this.duration,
-      required this.onChanged,
-      this.baseUnit = BaseUnit.minute,
-      this.snapToMins = 1.0});
+  const _Dial({
+    required this.duration,
+    required this.onChanged,
+    this.baseUnit = BaseUnit.minute,
+    this.snapToMins = 1.0,
+  });
 
   final Duration duration;
   final ValueChanged<Duration> onChanged;
@@ -345,26 +346,27 @@ class _DialState extends State<_Dial> with SingleTickerProviderStateMixin {
 
   // TODO: Fix snap to mins
   Duration _getTimeForTheta(double theta) {
-    return _angleToDuration(_turningAngle);
-    // var fractionalRotation = (0.25 - (theta / _kTwoPi));
-    // fractionalRotation = fractionalRotation < 0
-    //    ? 1 - fractionalRotation.abs()
-    //    : fractionalRotation;
-    // var mins = (fractionalRotation * 60).round();
-    // debugPrint('Mins0: ${widget.snapToMins }');
-    // if (widget.snapToMins != null) {
-    //   debugPrint('Mins1: $mins');
-    //  mins = ((mins / widget.snapToMins!).round() * widget.snapToMins!).round();
-    //   debugPrint('Mins2: $mins');
-    // }
-    // if (mins == 60) {
-    //  // _snappedHours = _hours + 1;
-    //  // mins = 0;
-    //  return new Duration(hours: 1, minutes: mins);
-    // } else {
-    //  // _snappedHours = _hours;
-    //  return new Duration(hours: _hours, minutes: mins);
-    // }
+    debugPrint("running _getTimeForTheta");
+    //return _angleToDuration(_turningAngle);
+    var fractionalRotation = (0.25 - (theta / _kTwoPi));
+    fractionalRotation = fractionalRotation < 0
+        ? 1 - fractionalRotation.abs()
+        : fractionalRotation;
+    var mins = (fractionalRotation * 60).round();
+    debugPrint('Snap mins: ${widget.snapToMins}');
+    if (widget.snapToMins != null) {
+      debugPrint('Mins before: $mins');
+      mins = ((mins / widget.snapToMins!).round() * widget.snapToMins!).round();
+      debugPrint('Mins after: $mins');
+    }
+    if (mins == 60) {
+      // _snappedHours = _hours + 1;
+      // mins = 0;
+      return Duration(hours: 1, minutes: mins);
+    } else {
+      // _snappedHours = _hours;
+      return Duration(hours: mins % 60, minutes: mins);
+    }
   }
 
   Duration _notifyOnChangedIfNeeded() {
@@ -496,6 +498,8 @@ class _DialState extends State<_Dial> with SingleTickerProviderStateMixin {
     } else {
       _turningAngle = _turningAngle + (newTheta - oldTheta);
     }
+
+    debugPrint("turning angle $newTheta");
   }
 
   void _handlePanEnd(DragEndDetails details) {
@@ -503,7 +507,9 @@ class _DialState extends State<_Dial> with SingleTickerProviderStateMixin {
     _dragging = false;
     _position = null;
     _center = null;
-    _animateTo(_getThetaForDuration(widget.duration, widget.baseUnit));
+    //_animateTo(_getThetaForDuration(widget.duration, widget.baseUnit));
+    _animateTo(
+        _getThetaForDuration(_getTimeForTheta(_theta.value), widget.baseUnit));
   }
 
   void _handleTapUp(TapUpDetails details) {
@@ -619,13 +625,13 @@ class DurationPickerDialog extends StatefulWidget {
   /// Creates a duration picker.
   ///
   /// [initialTime] must not be null.
-  const DurationPickerDialog(
-      {Key? key,
-      required this.initialTime,
-      this.baseUnit = BaseUnit.minute,
-      this.snapToMins = 1.0,
-      this.decoration})
-      : super(key: key);
+  const DurationPickerDialog({
+    Key? key,
+    required this.initialTime,
+    this.baseUnit = BaseUnit.minute,
+    this.snapToMins = 1.0,
+    this.decoration,
+  }) : super(key: key);
 
   /// The duration initially selected when the dialog is shown.
   final Duration initialTime;
@@ -703,9 +709,8 @@ class _DurationPickerDialogState extends State<DurationPickerDialog> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            Expanded(
-                child:
-                    picker), // picker grows and shrinks with the available space
+            Expanded(child: picker),
+            // picker grows and shrinks with the available space
             actions,
           ],
         ),
